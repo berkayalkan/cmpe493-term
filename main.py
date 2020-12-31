@@ -3,20 +3,16 @@ import os
 import logging
 from typing import List, Dict
 import string
-from stemmer import PorterStemmer
+from nltk.stem.porter import PorterStemmer
 
 
 def stop_word_list():  # Construct stop word list
-    with open("stopwords.txt", "r") as f:
-        lines = f.readlines()
-        words = []
-        for line in lines:
-            words.append(line.strip())
-        return words
+    with open("stop_words.txt", "r") as stop_word_file:
+        return stop_word_file.read().splitlines()
 
 
 def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
-    tokens_dict: Dict[str, List[str]] = None
+    tokens_dict: Dict[str, List[str]] = {}  # {paper_id: token_list}
     punctuation_list = list(string.punctuation)
     stemmer = PorterStemmer()
     for key in topic_info_dict:
@@ -43,11 +39,13 @@ def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
 
 def extract_files() -> Dict[str, str]:
     topic_info_dict: Dict[str, str] = {}  # {doc_id: abstract_plus_title}
-    # write your path to pdf_jsons folder
-    parent_input_path = "/Users/apple/Desktop/input_data/document_parses/pdf_json"
+    parent_input_path = "/Users/apple/Desktop/input_data/document_parses/pdf_json"  # write path to pdf_jsons folder
     pdf_jsons: List[str] = os.listdir(parent_input_path)
-    log_f = open(os.path.join(os.path.join(os.path.dirname(__file__), "log"), "output_log.txt"), "wb")
+    # log_f = open(os.path.join(os.path.join(os.path.dirname(__file__), "log"), "output_log.txt"), "wb")
+    counter = 0
     for file_name in pdf_jsons:
+        if counter == 50:
+            break
         file_path = os.path.join(parent_input_path, file_name)
         with open(file_path) as json_f:
             try:
@@ -62,8 +60,9 @@ def extract_files() -> Dict[str, str]:
             if extracted_info is not None and extracted_info.strip() != "" and paper_id is not None \
                     and paper_id.strip() != "":  # no time for useless papers :)
                 topic_info_dict[file_dict["paper_id"]] = extracted_info
-        log_f.write("Parsed file: {0}\n".format(file_name).encode("utf-8"))
-    log_f.close()
+        counter += 1
+        # log_f.write("Parsed file: {0}\n".format(file_name).encode("utf-8"))
+    # log_f.close()
     return topic_info_dict
 
 
