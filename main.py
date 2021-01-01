@@ -4,7 +4,6 @@ import logging
 from typing import List, Dict
 import string
 from nltk.stem.porter import PorterStemmer
-import collections
 import time
 import math
 
@@ -45,7 +44,10 @@ def extract_files() -> Dict[str, str]:
     parent_input_path = "/Users/apple/Desktop/input_data/document_parses/pdf_json"  # write path to pdf_jsons folder
     pdf_jsons: List[str] = os.listdir(parent_input_path)
     # log_f = open(os.path.join(os.path.join(os.path.dirname(__file__), "log"), "output_log.txt"), "wb")
+    counter = 0
     for file_name in pdf_jsons:
+        if counter == 1000:
+            break
         file_path = os.path.join(parent_input_path, file_name)
         with open(file_path) as json_f:
             try:
@@ -60,6 +62,7 @@ def extract_files() -> Dict[str, str]:
             if extracted_info is not None and extracted_info.strip() != "" and paper_id is not None \
                     and paper_id.strip() != "":  # no time for useless papers :)
                 topic_info_dict[file_dict["paper_id"]] = extracted_info
+        counter += 1
         # log_f.write("Parsed file: {0}\n".format(file_name).encode("utf-8"))
     # log_f.close()
     return topic_info_dict
@@ -77,6 +80,9 @@ def calculate_df(tokens_dict: Dict[str, List[str]]) -> Dict[str, int]:
     for doc_id in tokens_dict:
         words_set = list(set(tokens_dict[doc_id]))
         for word in words_set:
+            if word == "china":
+                print("a")
+                pass
             if word not in df_dict:
                 df_dict[word] = 1
             else:
@@ -84,10 +90,23 @@ def calculate_df(tokens_dict: Dict[str, List[str]]) -> Dict[str, int]:
     return df_dict
 
 
-def calculate_tf_weight(tokens_dict: Dict[str, List[str]]) -> Dict[str, Dict[str, int]]:
-    tf_dict = {}  # {doc_id: {token: frequency}
+def calculate_tf_weight(tokens_dict: Dict[str, List[str]]) -> Dict[str, Dict[str, float]]:
+    tf_dict = {x: {} for x in tokens_dict}    # {doc_id: {token: tf}
     for doc_id in tokens_dict:
-        tf_dict[doc_id] = dict(collections.Counter(tokens_dict[doc_id]))
+        for token in tokens_dict[doc_id]:
+            if token not in tf_dict[doc_id]:
+                tf_dict[doc_id][token] = 1.0
+            else:
+                tf_dict[doc_id][token] = 1.0 + math.log(1.0 + tf_dict[doc_id][token])
+    return tf_dict
+
+
+def calculate_score(tf_dict: Dict[str, Dict[str, float]], idf_dict: Dict[str, float]) -> Dict[str, Dict[str, float]]:
+    for doc_id in tf_dict:
+        for token in tf_dict[doc_id]:
+            idf_value: float = idf_dict[token]
+            tf_value: float = tf_dict[doc_id][token]
+            tf_dict[doc_id][token] = idf_value*tf_value  # tf_dict now keeps the score of the token instead of tf value
     return tf_dict
 
 
@@ -100,12 +119,12 @@ if __name__ == "__main__":
     print("File extraction is ended. Time passed: {0}".format(before_tf))
 
     tokenization_time = time.time()
-    tokens_dict, all_tokens = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
+    tokens_dict: Dict[str, List[str]] = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
     tokenization_time = time.time() - tokenization_time
     print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
 
     before_tf = time.time()
-    tf_dict: Dict[str, Dict[str, int]] = calculate_tf_weight(tokens_dict)
+    tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(tokens_dict)
     tf_time = time.time() - before_tf
     print("Calculating TF is ended. Time passed: {0}".format(tf_time))
 
@@ -118,3 +137,6 @@ if __name__ == "__main__":
     idf_dict: Dict[str, float] = calculate_idf(df_dict, len(tokens_dict))
     idf_time = time.time() - before_idf
     print("Calculating IDF is ended. Time passed: {0}".format(idf_time))
+
+    score_dict: Dict[str, Dict[str, float]] = calculate_score(tf_dict, idf_dict)
+    print("a")
