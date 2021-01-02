@@ -134,7 +134,10 @@ def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict:
     result_dict: Dict[str, Dict[str, float]] = {}
     for topic_id in train_normalized_dict:
         for doc_id in normalized_dict:
-            result_dict[topic_id][doc_id] = cos_calculator(normalized_dict[doc_id], train_normalized_dict[topic_id])
+            if topic_id not in result_dict:
+                result_dict.update({topic_id: {}})
+            result_dict[topic_id].update({doc_id: cos_calculator(normalized_dict[doc_id],
+                                                                     train_normalized_dict[topic_id])})
     return result_dict
 
 
@@ -185,5 +188,7 @@ if __name__ == "__main__":
     train_score_dict: Dict[str, Dict[str, float]] = calculate_score(train_tf_dict, train_idf_dict)
     train_normalized_dict: Dict[str, Dict[str, float]] = calculate_normalization(train_score_dict)
 
+    before_result = time.time()
     result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
-    print("a")
+    result_time = time.time() - before_result
+    print("Calculating RESULT is ended. Time passed: {0}".format(result_time))
