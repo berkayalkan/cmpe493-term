@@ -1,12 +1,11 @@
 import collections
-import json
-import os
 import logging
 from typing import List, Dict
 import string
 from nltk.stem.porter import PorterStemmer
 import time
 import math
+import pandas as pd
 
 
 def stop_word_list() -> List[str]:  # Construct stop word list
@@ -40,29 +39,12 @@ def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
     return tokens_dict
 
 
-def extract_files() -> Dict[str, str]:
-    topic_info_dict: Dict[str, str] = {}  # {doc_id: abstract_plus_title}
-    parent_input_path = "/Users/apple/Desktop/input_data/document_parses/pdf_json"  # write path to pdf_jsons folder
-    pdf_jsons: List[str] = os.listdir(parent_input_path)
-    # log_f = open(os.path.join(os.path.join(os.path.dirname(__file__), "log"), "output_log.txt"), "wb")
-    for file_name in pdf_jsons:
-        file_path = os.path.join(parent_input_path, file_name)
-        with open(file_path) as json_f:
-            try:
-                file_dict = json.load(json_f)
-            except json.decoder.JSONDecodeError as ex:
-                logging.error("Error happened while parsing {0}: {1}".format(file_name, ex))
-                continue
-            extracted_info: str = file_dict["metadata"]["title"]
-            for abstract_texts in file_dict["abstract"]:
-                extracted_info += " " + abstract_texts["text"]
-            paper_id: str = file_dict["paper_id"]
-            if extracted_info is not None and extracted_info.strip() != "" and paper_id is not None \
-                    and paper_id.strip() != "":  # no time for useless papers :)
-                topic_info_dict[file_dict["paper_id"]] = extracted_info
-        # log_f.write("Parsed file: {0}\n".format(file_name).encode("utf-8"))
-    # log_f.close()
-    return topic_info_dict
+def extract_file() -> Dict[str, str]:
+    df: pd.DataFrame = pd.read_csv("input/metadata.csv", index_col=None, usecols=["cord_uid", "title", "abstract"])\
+        .fillna("")
+    df["text"] = df["title"] + " " + df["abstract"]
+    topic_info_dict: Dict[str, str] = dict(pd.Series(df.text.values, index=df.cord_uid).to_dict())
+    return topic_info_dict  # {doc_id: title_plus_abstract}
 
 
 def calculate_idf(df_dict: Dict[str, int], num_of_docs: int) -> Dict[str, float]:
@@ -85,7 +67,7 @@ def calculate_df(tokens_dict: Dict[str, List[str]]) -> Dict[str, int]:
 
 
 def calculate_tf_weight(tokens_dict: Dict[str, List[str]]) -> Dict[str, Dict[str, float]]:
-    tf_dict: Dict[str, Dict[str, float]] = {x: {} for x in tokens_dict}    # {doc_id: {token: tf}
+    tf_dict: Dict[str, Dict[str, float]] = {x: {} for x in tokens_dict}  # {doc_id: {token: tf}
     for doc_id in tokens_dict:
         doc_freq: Dict[str, int] = dict(collections.Counter(tokens_dict[doc_id]))  # {token: frequency}
         for token in doc_freq:
@@ -98,7 +80,8 @@ def calculate_score(tf_dict: Dict[str, Dict[str, float]], idf_dict: Dict[str, fl
         for token in tf_dict[doc_id]:
             idf_value: float = idf_dict[token]
             tf_value: float = tf_dict[doc_id][token]
-            tf_dict[doc_id][token] = idf_value*tf_value  # tf_dict now keeps the score of the token instead of tf value
+            tf_dict[doc_id][
+                token] = idf_value * tf_value  # tf_dict now keeps the score of the token instead of tf value
     return tf_dict
 
 
@@ -106,7 +89,7 @@ STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
     begin_time = time.time()
-    topic_info_dict: Dict[str, str] = extract_files()
+    topic_info_dict: Dict[str, str] = extract_file()
     before_tf = time.time() - begin_time
     print("File extraction is ended. Time passed: {0}".format(before_tf))
 
