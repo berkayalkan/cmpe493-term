@@ -43,10 +43,18 @@ def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
 
 
 def extract_file() -> Dict[str, str]:
+
+    df_official: pd.DataFrame = pd.read_csv('input/official_results.txt', sep=" ", header=None)
+    desired_cord_uids = list(set(df_official[2].values.tolist()))
+
     df: pd.DataFrame = pd.read_csv("input/metadata.csv", index_col=None, usecols=["cord_uid", "title", "abstract"]) \
         .fillna("")
+    df = df[df.cord_uid.isin(desired_cord_uids)]
     df["text"] = df["title"] + " " + df["abstract"]
+    # cord_id leri ayır tamam bu
+    # TODO sonra threshold belirle train için (dene), sonra relevant olanları, file a yazdırıp, trec_eval çalıştır.
     topic_info_dict: Dict[str, str] = dict(pd.Series(df.text.values, index=df.cord_uid).to_dict())
+
     return topic_info_dict  # {doc_id: title_plus_abstract}
 
 
@@ -111,7 +119,7 @@ def cos_calculator(doc_dict: Dict[str, float], query_dict: Dict[str, float]):  #
     return val
 
 
-def extract_queries() -> Dict[str, str]:
+def extract_queries() -> (Dict[str, str], Dict[str, str]):
     url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
     response = get(url)
     html_soup = BeautifulSoup(response.text, 'html.parser')
@@ -123,9 +131,11 @@ def extract_queries() -> Dict[str, str]:
     for index in range(len(query_containers)):
         query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
                           + narrative_containers[index].text
-
-        train_query[str(index + 1)] = query_text
-    return train_query
+        if index % 2 == 0:
+            train_query[str(index + 1)] = query_text
+        else:
+            test_query[str(index + 1)] = query_text
+    return train_query, test_query
 
 
 def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict: Dict[str, Dict[str, float]]) \
@@ -147,7 +157,7 @@ def write_results(result_dict: Dict[str, Dict[str, float]]):
         for doc_id in result_dict[query_id]:
             line += "{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id]).encode("utf-8")
 
-    line = line[:-2]
+    # line = line[:-2]
     with open("output.txt", "wb") as out_file:
         out_file.write(line)
 
@@ -155,19 +165,19 @@ def write_results(result_dict: Dict[str, Dict[str, float]]):
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
-    # begin_time = time.time()
-    # topic_info_dict: Dict[str, str] = extract_file()
-    # before_tf = time.time() - begin_time
-    # print("File extraction is ended. Time passed: {0}".format(before_tf))
-    #
-    # tokenization_time = time.time()
-    # tokens_dict: Dict[str, List[str]] = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
-    # tokenization_time = time.time() - tokenization_time
-    # print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
+    begin_time = time.time()
+    topic_info_dict: Dict[str, str] = extract_file()
+    before_tf = time.time() - begin_time
+    print("File extraction is ended. Time passed: {0}".format(before_tf))
 
-    f = open('doc_tokens.pickle', 'rb')
+    tokenization_time = time.time()
+    tokens_dict: Dict[str, List[str]] = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
+    tokenization_time = time.time() - tokenization_time
+    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
+
+    """f = open('doc_tokens.pickle', 'rb')
     tokens_dict = pickle.load(f)
-    f.close()
+    f.close()"""
 
     before_tf = time.time()
     tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(tokens_dict)
@@ -195,12 +205,12 @@ if __name__ == "__main__":
     normalization_time = time.time() - before_normalization
     print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
 
-    #train_query = extract_queries()
-    #train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
+    train_query, test_query = extract_queries()
+    train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
 
-    f = open('topic_tokens.pickle', 'rb')
+    """f = open('topic_tokens.pickle', 'rb')
     train_token_dict = pickle.load(f)
-    f.close()
+    f.close()"""
 
     train_tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(train_token_dict)
     train_df_dict: Dict[str, int] = calculate_df(train_token_dict)
