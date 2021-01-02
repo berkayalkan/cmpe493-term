@@ -3,4 +3,4 @@ venv
 .DS_Store
 log
 *.txt
-input/metadata.csv
+input

@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 
 def stop_word_list() -> List[str]:  # Construct stop word list
-    with open("stop_words.txt", "r") as stop_word_file:
+    with open("input/stop_words.txt", "r") as stop_word_file:
         return stop_word_file.read().splitlines()
 
 
@@ -42,7 +42,7 @@ def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
 
 
 def extract_file() -> Dict[str, str]:
-    df: pd.DataFrame = pd.read_csv("input/metadata.csv", index_col=None, usecols=["cord_uid", "title", "abstract"])\
+    df: pd.DataFrame = pd.read_csv("input/metadata.csv", index_col=None, usecols=["cord_uid", "title", "abstract"]) \
         .fillna("")
     df["text"] = df["title"] + " " + df["abstract"]
     topic_info_dict: Dict[str, str] = dict(pd.Series(df.text.values, index=df.cord_uid).to_dict())
@@ -92,7 +92,7 @@ def calculate_normalization(score_dict: Dict[str, Dict[str, float]]) -> Dict[str
     for doc_id in score_dict:
         for token in score_dict[doc_id]:
             val: float = score_dict[doc_id][token]
-            total += val**2
+            total += val ** 2
 
         total_sqrt = math.sqrt(total)
 
@@ -105,18 +105,37 @@ def cos_calculator(doc_dict: Dict[str, float], query_dict: Dict[str, float]):  #
     val: float = 0
     for token in query_dict:
         if token in doc_dict:
-            val += query_dict[token]*doc_dict[token]
+            val += query_dict[token] * doc_dict[token]
     return val
 
 
-def extract_queries():
+def extract_queries() -> (Dict[str, str], Dict[str, str]):
     url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
     response = get(url)
     html_soup = BeautifulSoup(response.text, 'html.parser')
-
-    query_containers = html_soup.find_all('query')
+    train_query: Dict[str, str] = {}
+    test_query: Dict[str, str] = {}
+    query_containers = html_soup.find_all('query')  # type = bs4.element.ResultSet
     question_containers = html_soup.find_all('question')
     narrative_containers = html_soup.find_all('narrative')
+
+    for index in range(len(query_containers)):
+        query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
+                          + narrative_containers[index].text
+        if index % 2 == 0:
+            train_query[str(index + 1)] = query_text
+        else:
+            test_query[str(index + 1)] = query_text
+    return test_query, train_query
+
+
+def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict: Dict[str, Dict[str, float]]) \
+        -> Dict[str, Dict[str, float]]:
+    result_dict: Dict[str, Dict[str, float]] = {}
+    for topic_id in train_normalized_dict:
+        for doc_id in normalized_dict:
+            result_dict[topic_id][doc_id] = cos_calculator(normalized_dict[doc_id], train_normalized_dict[topic_id])
+    return result_dict
 
 
 STOP_WORDS: List[str] = stop_word_list()
@@ -154,9 +173,17 @@ if __name__ == "__main__":
 
     # AFTER LENGTH NORMALIZATION
     before_normalization = time.time()
-    normalized_dict:  Dict[str, Dict[str, float]] = calculate_normalization(score_dict)
+    normalized_dict: Dict[str, Dict[str, float]] = calculate_normalization(score_dict)
     normalization_time = time.time() - before_normalization
     print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
 
-    extract_queries()
+    test_query, train_query = extract_queries()
+    train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
+    train_tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(train_token_dict)
+    train_df_dict: Dict[str, int] = calculate_df(train_token_dict)
+    train_idf_dict: Dict[str, float] = calculate_idf(train_df_dict, len(train_token_dict))
+    train_score_dict: Dict[str, Dict[str, float]] = calculate_score(train_tf_dict, train_idf_dict)
+    train_normalized_dict: Dict[str, Dict[str, float]] = calculate_normalization(train_score_dict)
 
+    result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
+    print("a")
