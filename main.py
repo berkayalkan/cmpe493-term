@@ -140,6 +140,18 @@ def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict:
     return result_dict
 
 
+def write_results(result_dict: Dict[str, Dict[str, float]]):
+    line = b""
+    # query-id Q0 document-id rank score STANDARD
+    for query_id in result_dict:
+        for doc_id in result_dict[query_id]:
+            line += "{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id]).encode("utf-8")
+
+    line = line[:-2]
+    with open("output.txt", "wb") as out_file:
+        out_file.write(line)
+
+
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
@@ -201,4 +213,7 @@ if __name__ == "__main__":
     result_time = time.time() - before_result
     print("Calculating RESULT is ended. Time passed: {0}".format(result_time))
 
-    print("a")
+    before_output = time.time()
+    write_results(result_dict)
+    output_time = time.time() - before_output
+    print("Calculating OUTPUT is ended. Time passed: {0}".format(output_time))
