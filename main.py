@@ -6,6 +6,8 @@ from nltk.stem.porter import PorterStemmer
 import time
 import math
 import pandas as pd
+from requests import get
+from bs4 import BeautifulSoup
 
 
 def stop_word_list() -> List[str]:  # Construct stop word list
@@ -85,6 +87,8 @@ def calculate_score(tf_dict: Dict[str, Dict[str, float]], idf_dict: Dict[str, fl
     return tf_dict
 
 
+
+
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
@@ -117,3 +121,12 @@ if __name__ == "__main__":
     score_dict: Dict[str, Dict[str, float]] = calculate_score(tf_dict, idf_dict)
     score_time = time.time() - before_score
     print("Calculating SCORE is ended. Time passed: {0}".format(score_time))
+
+    url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
+    response = get(url)
+    html_soup = BeautifulSoup(response.text, 'html.parser')
+
+    query_containers = html_soup.find_all('query')
+    question_containers = html_soup.find_all('question')
+    narrative_containers = html_soup.find_all('narrative')
+
