@@ -8,6 +8,7 @@ import math
 import pandas as pd
 from requests import get
 from bs4 import BeautifulSoup
+import pickle
 
 
 def stop_word_list() -> List[str]:  # Construct stop word list
@@ -98,6 +99,7 @@ def calculate_normalization(score_dict: Dict[str, Dict[str, float]]) -> Dict[str
 
         for token in score_dict[doc_id]:
             score_dict[doc_id][token] /= total_sqrt
+        total = 0
     return score_dict
 
 
@@ -109,12 +111,11 @@ def cos_calculator(doc_dict: Dict[str, float], query_dict: Dict[str, float]):  #
     return val
 
 
-def extract_queries() -> (Dict[str, str], Dict[str, str]):
+def extract_queries() -> Dict[str, str]:
     url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
     response = get(url)
     html_soup = BeautifulSoup(response.text, 'html.parser')
     train_query: Dict[str, str] = {}
-    test_query: Dict[str, str] = {}
     query_containers = html_soup.find_all('query')  # type = bs4.element.ResultSet
     question_containers = html_soup.find_all('question')
     narrative_containers = html_soup.find_all('narrative')
@@ -122,11 +123,9 @@ def extract_queries() -> (Dict[str, str], Dict[str, str]):
     for index in range(len(query_containers)):
         query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
                           + narrative_containers[index].text
-        if index % 2 == 0:
-            train_query[str(index + 1)] = query_text
-        else:
-            test_query[str(index + 1)] = query_text
-    return test_query, train_query
+
+        train_query[str(index + 1)] = query_text
+    return train_query
 
 
 def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict: Dict[str, Dict[str, float]]) \
@@ -144,15 +143,19 @@ def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict:
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
-    begin_time = time.time()
-    topic_info_dict: Dict[str, str] = extract_file()
-    before_tf = time.time() - begin_time
-    print("File extraction is ended. Time passed: {0}".format(before_tf))
+    # begin_time = time.time()
+    # topic_info_dict: Dict[str, str] = extract_file()
+    # before_tf = time.time() - begin_time
+    # print("File extraction is ended. Time passed: {0}".format(before_tf))
+    #
+    # tokenization_time = time.time()
+    # tokens_dict: Dict[str, List[str]] = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
+    # tokenization_time = time.time() - tokenization_time
+    # print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
 
-    tokenization_time = time.time()
-    tokens_dict: Dict[str, List[str]] = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
-    tokenization_time = time.time() - tokenization_time
-    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
+    f = open('doc_tokens.pickle', 'rb')
+    tokens_dict = pickle.load(f)
+    f.close()
 
     before_tf = time.time()
     tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(tokens_dict)
@@ -180,8 +183,13 @@ if __name__ == "__main__":
     normalization_time = time.time() - before_normalization
     print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
 
-    test_query, train_query = extract_queries()
-    train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
+    #train_query = extract_queries()
+    #train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
+
+    f = open('topic_tokens.pickle', 'rb')
+    train_token_dict = pickle.load(f)
+    f.close()
+
     train_tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(train_token_dict)
     train_df_dict: Dict[str, int] = calculate_df(train_token_dict)
     train_idf_dict: Dict[str, float] = calculate_idf(train_df_dict, len(train_token_dict))
@@ -192,3 +200,5 @@ if __name__ == "__main__":
     result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
     result_time = time.time() - before_result
     print("Calculating RESULT is ended. Time passed: {0}".format(result_time))
+
+    print("a")

@@ -4,3 +4,5 @@ venv
 log
 *.txt
 input
+doc_tokens.pickle
+topic_tokens.pickle
