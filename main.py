@@ -85,6 +85,28 @@ def calculate_score(tf_dict: Dict[str, Dict[str, float]], idf_dict: Dict[str, fl
     return tf_dict
 
 
+def calculate_normalization(score_dict: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, float]]:
+    total: float = 0
+    for doc_id in score_dict:
+        for token in score_dict[doc_id]:
+            val: float = score_dict[doc_id][token]
+            total += val**2
+
+        total_sqrt = math.sqrt(total)
+
+        for token in score_dict[doc_id]:
+            score_dict[doc_id][token] /= total_sqrt
+    return score_dict
+
+
+def cos_calculator(doc_dict: Dict[str, float], query_dict: Dict[str, float]):  # one document vs. query
+    val: float = 0
+    for token in query_dict:
+        if token in doc_dict:
+            val += query_dict[token]*doc_dict[token]
+    return val
+
+
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
@@ -117,3 +139,9 @@ if __name__ == "__main__":
     score_dict: Dict[str, Dict[str, float]] = calculate_score(tf_dict, idf_dict)
     score_time = time.time() - before_score
     print("Calculating SCORE is ended. Time passed: {0}".format(score_time))
+
+    # AFTER LENGTH NORMALIZATION
+    before_normalization = time.time()
+    normalized_dict:  Dict[str, Dict[str, float]] = calculate_normalization(score_dict)
+    normalization_time = time.time() - before_normalization
+    print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
