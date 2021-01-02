@@ -1,3 +1,4 @@
+import collections
 import json
 import os
 import logging
@@ -8,7 +9,7 @@ import time
 import math
 
 
-def stop_word_list():  # Construct stop word list
+def stop_word_list() -> List[str]:  # Construct stop word list
     with open("stop_words.txt", "r") as stop_word_file:
         return stop_word_file.read().splitlines()
 
@@ -44,10 +45,7 @@ def extract_files() -> Dict[str, str]:
     parent_input_path = "/Users/apple/Desktop/input_data/document_parses/pdf_json"  # write path to pdf_jsons folder
     pdf_jsons: List[str] = os.listdir(parent_input_path)
     # log_f = open(os.path.join(os.path.join(os.path.dirname(__file__), "log"), "output_log.txt"), "wb")
-    counter = 0
     for file_name in pdf_jsons:
-        if counter == 1000:
-            break
         file_path = os.path.join(parent_input_path, file_name)
         with open(file_path) as json_f:
             try:
@@ -62,7 +60,6 @@ def extract_files() -> Dict[str, str]:
             if extracted_info is not None and extracted_info.strip() != "" and paper_id is not None \
                     and paper_id.strip() != "":  # no time for useless papers :)
                 topic_info_dict[file_dict["paper_id"]] = extracted_info
-        counter += 1
         # log_f.write("Parsed file: {0}\n".format(file_name).encode("utf-8"))
     # log_f.close()
     return topic_info_dict
@@ -80,9 +77,6 @@ def calculate_df(tokens_dict: Dict[str, List[str]]) -> Dict[str, int]:
     for doc_id in tokens_dict:
         words_set = list(set(tokens_dict[doc_id]))
         for word in words_set:
-            if word == "china":
-                print("a")
-                pass
             if word not in df_dict:
                 df_dict[word] = 1
             else:
@@ -91,13 +85,11 @@ def calculate_df(tokens_dict: Dict[str, List[str]]) -> Dict[str, int]:
 
 
 def calculate_tf_weight(tokens_dict: Dict[str, List[str]]) -> Dict[str, Dict[str, float]]:
-    tf_dict = {x: {} for x in tokens_dict}    # {doc_id: {token: tf}
+    tf_dict: Dict[str, Dict[str, float]] = {x: {} for x in tokens_dict}    # {doc_id: {token: tf}
     for doc_id in tokens_dict:
-        for token in tokens_dict[doc_id]:
-            if token not in tf_dict[doc_id]:
-                tf_dict[doc_id][token] = 1.0
-            else:
-                tf_dict[doc_id][token] = 1.0 + math.log(1.0 + tf_dict[doc_id][token])
+        doc_freq: Dict[str, int] = dict(collections.Counter(tokens_dict[doc_id]))  # {token: frequency}
+        for token in doc_freq:
+            tf_dict[doc_id][token] = 1.0 + math.log(doc_freq[token])
     return tf_dict
 
 
@@ -110,7 +102,7 @@ def calculate_score(tf_dict: Dict[str, Dict[str, float]], idf_dict: Dict[str, fl
     return tf_dict
 
 
-STOP_WORDS = stop_word_list()
+STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
     begin_time = time.time()
@@ -138,5 +130,7 @@ if __name__ == "__main__":
     idf_time = time.time() - before_idf
     print("Calculating IDF is ended. Time passed: {0}".format(idf_time))
 
+    before_score = time.time()
     score_dict: Dict[str, Dict[str, float]] = calculate_score(tf_dict, idf_dict)
-    print("a")
+    score_time = time.time() - before_score
+    print("Calculating SCORE is ended. Time passed: {0}".format(score_time))
