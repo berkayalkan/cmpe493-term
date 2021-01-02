@@ -6,6 +6,8 @@ from nltk.stem.porter import PorterStemmer
 import time
 import math
 import pandas as pd
+from requests import get
+from bs4 import BeautifulSoup
 
 
 def stop_word_list() -> List[str]:  # Construct stop word list
@@ -107,6 +109,16 @@ def cos_calculator(doc_dict: Dict[str, float], query_dict: Dict[str, float]):  #
     return val
 
 
+def extract_queries():
+    url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
+    response = get(url)
+    html_soup = BeautifulSoup(response.text, 'html.parser')
+
+    query_containers = html_soup.find_all('query')
+    question_containers = html_soup.find_all('question')
+    narrative_containers = html_soup.find_all('narrative')
+
+
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
@@ -145,3 +157,6 @@ if __name__ == "__main__":
     normalized_dict:  Dict[str, Dict[str, float]] = calculate_normalization(score_dict)
     normalization_time = time.time() - before_normalization
     print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
+
+    extract_queries()
+
