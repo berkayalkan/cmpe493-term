@@ -124,6 +124,7 @@ def extract_queries() -> (Dict[str, str], Dict[str, str]):
     response = get(url)
     html_soup = BeautifulSoup(response.text, 'html.parser')
     train_query: Dict[str, str] = {}
+    test_query: Dict[str, str] = {}
     query_containers = html_soup.find_all('query')  # type = bs4.element.ResultSet
     question_containers = html_soup.find_all('question')
     narrative_containers = html_soup.find_all('narrative')
@@ -151,21 +152,29 @@ def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict:
 
 
 def write_results(result_dict: Dict[str, Dict[str, float]]):
-    line = b""
+    THRESHOLD = 0.05
     # query-id Q0 document-id rank score STANDARD
-    for query_id in result_dict:
-        for doc_id in result_dict[query_id]:
-            line += "{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id]).encode("utf-8")
+    counter = 5
+    while counter <= 5:
+        line = b""
+        for query_id in result_dict:
+            for doc_id in result_dict[query_id]:
+                if float(result_dict[query_id][doc_id]) > THRESHOLD:
+                    line += "{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id]).encode("utf-8")
 
-    # line = line[:-2]
-    with open("output.txt", "wb") as out_file:
-        out_file.write(line)
+        with open("output/{0}_output.txt".format(THRESHOLD), "wb") as out_file:
+            out_file.write(line)
+
+        print("THRESHOLD IS ---> {0}".format(THRESHOLD))
+        counter += 1
+        THRESHOLD = counter/100
+    print("write_results is ended.")
 
 
 STOP_WORDS: List[str] = stop_word_list()
 
 if __name__ == "__main__":
-    begin_time = time.time()
+    """begin_time = time.time()
     topic_info_dict: Dict[str, str] = extract_file()
     before_tf = time.time() - begin_time
     print("File extraction is ended. Time passed: {0}".format(before_tf))
@@ -173,11 +182,11 @@ if __name__ == "__main__":
     tokenization_time = time.time()
     tokens_dict: Dict[str, List[str]] = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
     tokenization_time = time.time() - tokenization_time
-    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
+    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))"""
 
-    """f = open('doc_tokens.pickle', 'rb')
+    f = open('input/doc_tokens.pickle', 'rb')
     tokens_dict = pickle.load(f)
-    f.close()"""
+    f.close()
 
     before_tf = time.time()
     tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(tokens_dict)
@@ -206,9 +215,9 @@ if __name__ == "__main__":
     print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
 
     train_query, test_query = extract_queries()
-    train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
+    train_token_dict: Dict[str, List[str]] = tokenizer(test_query)
 
-    """f = open('topic_tokens.pickle', 'rb')
+    """f = open('input/topic_tokens.pickle', 'rb')
     train_token_dict = pickle.load(f)
     f.close()"""
 
