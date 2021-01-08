@@ -35,8 +35,8 @@ def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
 
         # Remove stop words from the document information
         # If word's length is 1 and word is not an one digit number, remove the word from list
-        info_words = [stemmer.stem(word) for word in info_words if word not in STOP_WORDS and
-                      (word.isnumeric() or len(word) > 1)]
+        info_words = [stemmer.stem(word) for word in info_words
+                      if word not in STOP_WORDS and (word.isnumeric() or len(word) > 1)]
 
         tokens_dict[key] = info_words
     return tokens_dict
@@ -132,10 +132,11 @@ def extract_queries() -> (Dict[str, str], Dict[str, str]):
     for index in range(len(query_containers)):
         query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
                           + narrative_containers[index].text
-        if index % 2 == 0:
+        train_query[str(index + 1)] = query_text
+        """if index % 2 == 0:
             train_query[str(index + 1)] = query_text
         else:
-            test_query[str(index + 1)] = query_text
+            test_query[str(index + 1)] = query_text"""
     return train_query, test_query
 
 
@@ -152,22 +153,20 @@ def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict:
 
 
 def write_results(result_dict: Dict[str, Dict[str, float]]):
-    THRESHOLD = 0.05
+    #THRESHOLD = 0.2
     # query-id Q0 document-id rank score STANDARD
-    counter = 5
-    while counter <= 5:
-        line = b""
+    #counter = 5
+    #while counter <= 5:
+        #line = b""
+    with open("output/{0}_output.txt".format("test"), "wb") as out_file:
+
         for query_id in result_dict:
             for doc_id in result_dict[query_id]:
-                if float(result_dict[query_id][doc_id]) > THRESHOLD:
-                    line += "{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id]).encode("utf-8")
+                out_file.write("{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id]).encode("utf-8"))
 
-        with open("output/{0}_output.txt".format(THRESHOLD), "wb") as out_file:
-            out_file.write(line)
-
-        print("THRESHOLD IS ---> {0}".format(THRESHOLD))
-        counter += 1
-        THRESHOLD = counter/100
+    #print("THRESHOLD IS ---> {0}".format(THRESHOLD))
+    #counter += 1
+    #THRESHOLD = counter/100
     print("write_results is ended.")
 
 
@@ -215,7 +214,7 @@ if __name__ == "__main__":
     print("Calculating NORMALIZATION is ended. Time passed: {0}".format(normalization_time))
 
     train_query, test_query = extract_queries()
-    train_token_dict: Dict[str, List[str]] = tokenizer(test_query)
+    train_token_dict: Dict[str, List[str]] = tokenizer(train_query)
 
     """f = open('input/topic_tokens.pickle', 'rb')
     train_token_dict = pickle.load(f)
