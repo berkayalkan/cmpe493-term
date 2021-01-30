@@ -1,127 +1,86 @@
-import json
-import os
-import logging
-from typing import List, Dict
-import string
-from nltk.stem.porter import PorterStemmer
-import collections
 import time
-import math
+import tokenizer
+import calculations
+import file_operation
+from requests import get
+from typing import List, Dict
+from bs4 import BeautifulSoup
 
 
-def stop_word_list():  # Construct stop word list
-    with open("stop_words.txt", "r") as stop_word_file:
-        return stop_word_file.read().splitlines()
+def extract_queries() -> (Dict[str, str], Dict[str, str]):
+    url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
+    response = get(url)
+    html_soup = BeautifulSoup(response.text, 'html.parser')
+    train_query: Dict[str, str] = {}
+    test_query: Dict[str, str] = {}
+    query_containers = html_soup.find_all('query')  # type = bs4.element.ResultSet
+    question_containers = html_soup.find_all('question')
+    narrative_containers = html_soup.find_all('narrative')
+
+    for index in range(len(query_containers)):
+        query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
+                          + narrative_containers[index].text
+        train_query[str(index + 1)] = query_text  # şimdilik sadece bu
+        """if index % 2 == 0:
+            train_query[str(index + 1)] = query_text
+        else:
+            test_query[str(index + 1)] = query_text"""
+    return train_query, test_query
 
 
-def tokenizer(topic_info_dict: Dict[str, str]) -> Dict[str, List[str]]:
-    tokens_dict: Dict[str, List[str]] = {}  # {paper_id: token_list}
-    punctuation_list = list(string.punctuation)
-    stemmer = PorterStemmer()
-    for key in topic_info_dict:
-        info = topic_info_dict[key]
-        info = info.lower()
-        # Replace punctuations with space character in the document information
-        for punctuation in punctuation_list:
-            if punctuation == ".":
-                info = info.replace(punctuation, "")
-                continue
-            info = info.replace(punctuation, " ")
+def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict: Dict[str, Dict[str, float]]) \
+        -> Dict[str, Dict[str, float]]:
+    result_dict: Dict[str, Dict[str, float]] = {}
+    for topic_id in train_normalized_dict:
+        for doc_id in normalized_dict:
+            if topic_id not in result_dict:
+                result_dict.update({topic_id: {}})
+            result_dict[topic_id].update({doc_id: calculations.cos_calculator(normalized_dict[doc_id],
+                                                                              train_normalized_dict[topic_id])})
+    return result_dict
 
-        # Take terms as list
-        info_words = info.split()
-
-        # Remove stop words from the document information
-        # If word's length is 1 and word is not an one digit number, remove the word from list
-        info_words = [stemmer.stem(word) for word in info_words if word not in STOP_WORDS and
-                      (word.isnumeric() or len(word) > 1)]
-
-        tokens_dict[key] = info_words
-    return tokens_dict
-
-
-def extract_files() -> Dict[str, str]:
-    topic_info_dict: Dict[str, str] = {}  # {doc_id: abstract_plus_title}
-    parent_input_path = "/Users/apple/Desktop/input_data/document_parses/pdf_json"  # write path to pdf_jsons folder
-    pdf_jsons: List[str] = os.listdir(parent_input_path)
-    # log_f = open(os.path.join(os.path.join(os.path.dirname(__file__), "log"), "output_log.txt"), "wb")
-    for file_name in pdf_jsons:
-        file_path = os.path.join(parent_input_path, file_name)
-        with open(file_path) as json_f:
-            try:
-                file_dict = json.load(json_f)
-            except json.decoder.JSONDecodeError as ex:
-                logging.error("Error happened while parsing {0}: {1}".format(file_name, ex))
-                continue
-            extracted_info: str = file_dict["metadata"]["title"]
-            for abstract_texts in file_dict["abstract"]:
-                extracted_info += " " + abstract_texts["text"]
-            paper_id: str = file_dict["paper_id"]
-            if extracted_info is not None and extracted_info.strip() != "" and paper_id is not None \
-                    and paper_id.strip() != "":  # no time for useless papers :)
-                topic_info_dict[file_dict["paper_id"]] = extracted_info
-        # log_f.write("Parsed file: {0}\n".format(file_name).encode("utf-8"))
-    # log_f.close()
-    return topic_info_dict
-
-
-def calculate_idf(df_dict: Dict[str, int], num_of_docs: int) -> Dict[str, float]:
-    idf_dict: Dict[str, float] = {}
-    for word in df_dict:
-        idf_dict[word] = math.log(num_of_docs / df_dict[word])
-    return idf_dict
-
-
-def calculate_df(tokens_dict: Dict[str, List[str]]) -> Dict[str, int]:
-    df_dict: Dict[str, int] = {}  # {token: doc. freq.}
-    for doc_id in tokens_dict:
-        words_set = list(set(tokens_dict[doc_id]))
-        for word in words_set:
-            if word not in df_dict:
-                df_dict[word] = 1
-            else:
-                df_dict[word] += 1
-    return df_dict
-
-
-def tf_weight(words, stopwords):
-
-    tf_weight_dict = {}
-    tf_dict = {}
-    for word in words:
-        word = word.lower()
-        if word not in stopwords:
-            if word not in tf_weight_dict:
-                tf_dict[word] = 1
-            else:
-                tf_dict[word] = 1 + tf_dict[word]
-            tf_weight_dict[word] = 1 + math.log(tf_dict[word])
-    return tf_weight_dict
-
-STOP_WORDS = stop_word_list()
 
 if __name__ == "__main__":
     begin_time = time.time()
-    topic_info_dict: Dict[str, str] = extract_files()
+    topic_info_dict: Dict[str, str] = file_operation.extract_file()
     before_tf = time.time() - begin_time
     print("File extraction is ended. Time passed: {0}".format(before_tf))
 
     tokenization_time = time.time()
-    tokens_dict, all_tokens = tokenizer(topic_info_dict)  # Dict[str, List[str]], List[str]
+    tokens_dict: Dict[str, List[str]] = tokenizer.tokenize(topic_info_dict)  # Dict[str, List[str]], List[str]
     tokenization_time = time.time() - tokenization_time
     print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
 
-    before_tf = time.time()
-    tf_dict: Dict[str, Dict[str, int]] = calculate_tf_weight(tokens_dict)
-    tf_time = time.time() - before_tf
-    print("Calculating TF is ended. Time passed: {0}".format(tf_time))
+    """f = open('input/doc_tokens.pickle', 'rb')
+    tokens_dict = pickle.load(f)
+    f.close()"""
 
-    before_df = time.time()
-    df_dict: Dict[str, int] = calculate_df(tokens_dict)
-    df_time = time.time() - before_df
-    print("Calculating DF is ended. Time passed: {0}".format(df_time))
+    tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(tokens_dict)
+    df_dict: Dict[str, int] = calculations.calculate_df(tokens_dict)
+    idf_dict: Dict[str, float] = calculations.calculate_idf(df_dict, len(tokens_dict))
+    score_dict: Dict[str, Dict[str, float]] = calculations.calculate_score(tf_dict, idf_dict)
+    # AFTER LENGTH NORMALIZATION
+    normalized_dict: Dict[str, Dict[str, float]] = calculations.calculate_normalization(score_dict)
 
-    before_idf = time.time()
-    idf_dict: Dict[str, float] = calculate_idf(df_dict, len(tokens_dict))
-    idf_time = time.time() - before_idf
-    print("Calculating IDF is ended. Time passed: {0}".format(idf_time))
+    train_query, test_query = extract_queries()
+    train_token_dict: Dict[str, List[str]] = tokenizer.tokenize(train_query)
+
+    """f = open('input/topic_tokens.pickle', 'rb')
+    train_token_dict = pickle.load(f)
+    f.close()"""
+
+    train_tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(train_token_dict)
+    train_df_dict: Dict[str, int] = calculations.calculate_df(train_token_dict)
+    train_idf_dict: Dict[str, float] = calculations.calculate_idf(train_df_dict, len(train_token_dict))
+    train_score_dict: Dict[str, Dict[str, float]] = calculations.calculate_score(train_tf_dict, train_idf_dict)
+    train_normalized_dict: Dict[str, Dict[str, float]] = calculations.calculate_normalization(train_score_dict)
+
+    before_result = time.time()
+    result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
+    result_time = time.time() - before_result
+    print("Calculating RESULT is ended. Time passed: {0}".format(result_time))
+
+    before_output = time.time()
+    file_operation.write_results(result_dict)
+    output_time = time.time() - before_output
+    print("Calculating OUTPUT is ended. Time passed: {0}".format(output_time))

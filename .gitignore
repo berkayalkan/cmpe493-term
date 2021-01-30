@@ -3,3 +3,6 @@ venv
 .DS_Store
 log
 *.txt
+input
+output
+__pycache__
