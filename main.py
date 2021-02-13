@@ -1,3 +1,4 @@
+import pickle
 import time
 import tokenizer
 import calculations
@@ -5,6 +6,9 @@ import file_operation
 from requests import get
 from typing import List, Dict
 from bs4 import BeautifulSoup
+import os
+import gensim
+import doc2vec
 
 
 def extract_queries() -> (Dict[str, str], Dict[str, str]):
@@ -20,11 +24,11 @@ def extract_queries() -> (Dict[str, str], Dict[str, str]):
     for index in range(len(query_containers)):
         query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
                           + narrative_containers[index].text
-        train_query[str(index + 1)] = query_text  # şimdilik sadece bu
-        """if index % 2 == 0:
+        # train_query[str(index + 1)] = query_text  # şimdilik sadece bu
+        if index % 2 == 0:
             train_query[str(index + 1)] = query_text
         else:
-            test_query[str(index + 1)] = query_text"""
+            test_query[str(index + 1)] = query_text
     return train_query, test_query
 
 
@@ -46,30 +50,42 @@ if __name__ == "__main__":
     before_tf = time.time() - begin_time
     print("File extraction is ended. Time passed: {0}".format(before_tf))
 
-    tokenization_time = time.time()
+    """tokenization_time = time.time()
     tokens_dict: Dict[str, List[str]] = tokenizer.tokenize(topic_info_dict)  # Dict[str, List[str]], List[str]
     tokenization_time = time.time() - tokenization_time
-    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
+    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))"""
 
-    """f = open('input/doc_tokens.pickle', 'rb')
-    tokens_dict = pickle.load(f)
+    """f = open('input/doc_tokens.pickle', 'wb')
+    pickle.dump(tokens_dict, f)
     f.close()"""
+    f = open('input/doc_tokens.pickle', 'rb')
+    tokens_dict = pickle.load(f)
+    f.close()
 
-    tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(tokens_dict)
+    """tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(tokens_dict)
     df_dict: Dict[str, int] = calculations.calculate_df(tokens_dict)
     idf_dict: Dict[str, float] = calculations.calculate_idf(df_dict, len(tokens_dict))
     score_dict: Dict[str, Dict[str, float]] = calculations.calculate_score(tf_dict, idf_dict)
     # AFTER LENGTH NORMALIZATION
-    normalized_dict: Dict[str, Dict[str, float]] = calculations.calculate_normalization(score_dict)
+    normalized_dict: Dict[str, Dict[str, float]] = calculations.calculate_normalization(score_dict)"""
 
-    train_query, test_query = extract_queries()
-    train_token_dict: Dict[str, List[str]] = tokenizer.tokenize(train_query)
+    """train_query, test_query = extract_queries()
+    train_token_dict: Dict[str, List[str]] = tokenizer.tokenize(train_query)"""
 
-    """f = open('input/topic_tokens.pickle', 'rb')
-    train_token_dict = pickle.load(f)
+    """f = open('input/topic_tokens.pickle', 'wb')
+    pickle.dump(train_token_dict, f)
     f.close()"""
+    f = open('input/topic_tokens.pickle', 'rb')
+    train_token_dict = pickle.load(f)
+    f.close()
 
-    train_tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(train_token_dict)
+    """counter = 0
+    for token in tokens_dict:
+        counter += len(tokens_dict[token])
+    vec_size = counter / len(tokens_dict)"""
+    result_dict = doc2vec.calculate_doc2vec(tokens_dict, train_token_dict)
+
+    """train_tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(train_token_dict)
     train_df_dict: Dict[str, int] = calculations.calculate_df(train_token_dict)
     train_idf_dict: Dict[str, float] = calculations.calculate_idf(train_df_dict, len(train_token_dict))
     train_score_dict: Dict[str, Dict[str, float]] = calculations.calculate_score(train_tf_dict, train_idf_dict)
@@ -78,9 +94,9 @@ if __name__ == "__main__":
     before_result = time.time()
     result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
     result_time = time.time() - before_result
-    print("Calculating RESULT is ended. Time passed: {0}".format(result_time))
+    print("Calculating RESULT is ended. Time passed: {0}".format(result_time))"""
 
     before_output = time.time()
-    file_operation.write_results(result_dict)
+    file_operation.write_results_w_threshold(result_dict)
     output_time = time.time() - before_output
     print("Calculating OUTPUT is ended. Time passed: {0}".format(output_time))
