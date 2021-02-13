@@ -1,14 +1,13 @@
+import os
 import pickle
 import time
+import doc2vec
 import tokenizer
 import calculations
 import file_operation
 from requests import get
 from typing import List, Dict
 from bs4 import BeautifulSoup
-import os
-import gensim
-import doc2vec
 
 
 def extract_queries() -> (Dict[str, str], Dict[str, str]):
@@ -24,7 +23,6 @@ def extract_queries() -> (Dict[str, str], Dict[str, str]):
     for index in range(len(query_containers)):
         query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
                           + narrative_containers[index].text
-        # train_query[str(index + 1)] = query_text  # şimdilik sadece bu
         if index % 2 == 0:
             train_query[str(index + 1)] = query_text
         else:
@@ -44,59 +42,54 @@ def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict:
     return result_dict
 
 
+def create_dictionaries() -> (Dict[str, List[str]], Dict[str, List[str]]):
+    """Creates the train / test query dictionary and token dictionary of the metadata.csv"""
+    if os.path.exists('input/doc_tokens.pickle'):
+        f = open('input/doc_tokens.pickle', 'rb')
+        tokens_dict = pickle.load(f)
+        f.close()
+    else:
+        begin_time = time.time()
+        topic_info_dict: Dict[str, str] = file_operation.extract_file()
+        before_tf = time.time() - begin_time
+        print("File extraction is ended. Time passed: {0}".format(before_tf))
+
+        tokenization_time = time.time()
+        tokens_dict: Dict[str, List[str]] = tokenizer.tokenize(topic_info_dict)  # Dict[str, List[str]], List[str]
+        tokenization_time = time.time() - tokenization_time
+        print("Tokenization is ended. Time passed: {0}".format(tokenization_time))
+
+        print('\033[32m' + "Output file for tokens dictionary is creating under input directory." + '\033[0m')
+        f = open('input/doc_tokens.pickle', 'wb')
+        pickle.dump(tokens_dict, f)
+        f.close()
+
+    if os.path.exists("input/topic_tokens.pickle"):
+        f = open('input/topic_tokens.pickle', 'rb')
+        train_token_dict = pickle.load(f)  # RN the pickle is train
+        f.close()
+    else:
+        train_query, test_query = extract_queries()
+        # IMPORTANT IF YOU WANT TO TEST THE MODEL, CALL 'tokenizer.tokenize(test_query)'.
+        train_token_dict: Dict[str, List[str]] = tokenizer.tokenize(test_query)
+
+        print('\033[32m' + "Output file for train query tokens is creating under input directory." + '\033[0m')
+        f = open('input/topic_tokens.pickle', 'wb')
+        pickle.dump(train_token_dict, f)
+        f.close()
+    return tokens_dict, train_token_dict
+
+
 if __name__ == "__main__":
-    begin_time = time.time()
-    topic_info_dict: Dict[str, str] = file_operation.extract_file()
-    before_tf = time.time() - begin_time
-    print("File extraction is ended. Time passed: {0}".format(before_tf))
 
-    """tokenization_time = time.time()
-    tokens_dict: Dict[str, List[str]] = tokenizer.tokenize(topic_info_dict)  # Dict[str, List[str]], List[str]
-    tokenization_time = time.time() - tokenization_time
-    print("Tokenization is ended. Time passed: {0}".format(tokenization_time))"""
-
-    """f = open('input/doc_tokens.pickle', 'wb')
-    pickle.dump(tokens_dict, f)
-    f.close()"""
-    f = open('input/doc_tokens.pickle', 'rb')
-    tokens_dict = pickle.load(f)
-    f.close()
-
-    """tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(tokens_dict)
-    df_dict: Dict[str, int] = calculations.calculate_df(tokens_dict)
-    idf_dict: Dict[str, float] = calculations.calculate_idf(df_dict, len(tokens_dict))
-    score_dict: Dict[str, Dict[str, float]] = calculations.calculate_score(tf_dict, idf_dict)
-    # AFTER LENGTH NORMALIZATION
-    normalized_dict: Dict[str, Dict[str, float]] = calculations.calculate_normalization(score_dict)"""
-
-    """train_query, test_query = extract_queries()
-    train_token_dict: Dict[str, List[str]] = tokenizer.tokenize(train_query)"""
-
-    """f = open('input/topic_tokens.pickle', 'wb')
-    pickle.dump(train_token_dict, f)
-    f.close()"""
-    f = open('input/topic_tokens.pickle', 'rb')
-    train_token_dict = pickle.load(f)
-    f.close()
-
-    """counter = 0
-    for token in tokens_dict:
-        counter += len(tokens_dict[token])
-    vec_size = counter / len(tokens_dict)"""
-    result_dict = doc2vec.calculate_doc2vec(tokens_dict, train_token_dict)
-
-    """train_tf_dict: Dict[str, Dict[str, float]] = calculations.calculate_tf_weight(train_token_dict)
-    train_df_dict: Dict[str, int] = calculations.calculate_df(train_token_dict)
-    train_idf_dict: Dict[str, float] = calculations.calculate_idf(train_df_dict, len(train_token_dict))
-    train_score_dict: Dict[str, Dict[str, float]] = calculations.calculate_score(train_tf_dict, train_idf_dict)
-    train_normalized_dict: Dict[str, Dict[str, float]] = calculations.calculate_normalization(train_score_dict)
-
-    before_result = time.time()
-    result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
-    result_time = time.time() - before_result
-    print("Calculating RESULT is ended. Time passed: {0}".format(result_time))"""
+    tokens_dict, train_token_dict = create_dictionaries()
+    result_dict = doc2vec.calculate_doc2vec(tokens_dict, train_token_dict)  # doc2vec method
+    # result_dict = calculations.run_tfidf(tokens_dict, train_token_dict)
+    # TODO BM25
+    # TODO BERT
 
     before_output = time.time()
-    file_operation.write_results_w_threshold(result_dict)
+    # for NO THRESHOLD, call write_results | for doc2vec(threshold + scale) call write_results_w_scale
+    file_operation.write_results_w_scale(result_dict)
     output_time = time.time() - before_output
     print("Calculating OUTPUT is ended. Time passed: {0}".format(output_time))
