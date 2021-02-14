@@ -1,6 +1,7 @@
 import math
 import collections
 from typing import List, Dict
+from rank_bm25 import BM25Okapi
 
 
 def calculate_idf(df_dict: Dict[str, int], num_of_docs: int) -> Dict[str, float]:
@@ -68,3 +69,17 @@ def cos_calculator(doc_dict: Dict[str, float], query_dict: Dict[str, float]):  #
         if token in doc_dict:
             val += query_dict[token] * doc_dict[token]
     return val
+
+
+def bm25_scores(tokenized_corpus_dict, topics_query):
+    bm25_scores_dict = {}
+    for topic in topics_query:
+        for doc in tokenized_corpus_dict:
+            bm25_scores_dict[doc] = bm25_score(tokenized_corpus_dict[doc], topics_query[topic])
+    return bm25_scores_dict
+
+
+def bm25_score(tokenized_corpus, tokenized_query):
+    bm25 = BM25Okapi(tokenized_corpus)
+    score = bm25.get_scores(tokenized_query)
+    return score
