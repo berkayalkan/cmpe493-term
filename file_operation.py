@@ -1,5 +1,7 @@
 import pandas as pd
 from typing import List, Dict
+from bs4 import BeautifulSoup
+from requests import get
 
 
 def stop_word_list() -> List[str]:  # Construct stop word list
@@ -29,7 +31,6 @@ def write_results(result_dict: Dict[str, Dict[str, float]]):
     while counter <= 5:
         line = b"""""
     with open("output/{0}_output.txt".format("doc2vec_3"), "wb") as out_file:
-
         for query_id in result_dict:
             for doc_id in result_dict[query_id]:
                 out_file.write("{0} Q0 {1} 0 {2} STANDARD\n".format(query_id, doc_id, result_dict[query_id][doc_id])
@@ -39,6 +40,27 @@ def write_results(result_dict: Dict[str, Dict[str, float]]):
     counter += 1
     THRESHOLD = counter/100"""
     print("write_results is ended.")
+
+
+def extract_queries_for_bert() -> (Dict[str, str], Dict[str, str]):
+    url = 'https://ir.nist.gov/covidSubmit/data/topics-rnd5.xml'
+    response = get(url)
+    html_soup = BeautifulSoup(response.text, 'html.parser')
+    train_query: Dict[str, str] = {}
+    test_query: Dict[str, str] = {}
+    query_containers = html_soup.find_all('query')  # type = bs4.element.ResultSet
+    question_containers = html_soup.find_all('question')
+    narrative_containers = html_soup.find_all('narrative')
+
+    for index in range(len(query_containers)):
+        query_text: str = query_containers[index].text + " " + question_containers[index].text + " " \
+                          + narrative_containers[index].text
+        train_query[str(index + 1)] = query_text  # şimdilik sadece bu
+        """if index % 2 == 0:
+            train_query[str(index + 1)] = query_text
+        else:
+            test_query[str(index + 1)] = query_text"""
+    return train_query, test_query
 
 
 def write_results_w_threshold(result_dict: Dict[str, Dict[str, float]]):
@@ -97,4 +119,3 @@ def write_results_w_scale(result_dict: Dict[str, Dict[str, float]]):
         counter += 1
         THRESHOLD = counter/10
         print("write_results_w_scale is ended.")
-
