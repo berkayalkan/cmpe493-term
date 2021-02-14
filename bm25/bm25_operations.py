@@ -16,7 +16,7 @@ if __name__ == "__main__":
     tokenization_time = time.time()
     tokens_dict: Dict[str, List[str]] = tokenizer.tokenize(topic_info_dict)
 
-    query_token_dict = main.extract_queries()
+    query_token_dict = main.extract_queries()[0]
     query_tokens: Dict[str, List[str]] = tokenizer.tokenize(query_token_dict)
     tokenization_time = time.time() - tokenization_time
     print("Tokenization is ended. Time passed: {0}".format(tokenization_time))

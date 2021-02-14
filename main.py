@@ -1,7 +1,7 @@
 import os
 import pickle
 import time
-import doc2vec
+from doc2vec import doc2vec
 import tokenizer
 import calculations
 import file_operation
@@ -85,8 +85,6 @@ if __name__ == "__main__":
     tokens_dict, train_token_dict = create_dictionaries()
     result_dict = doc2vec.calculate_doc2vec(tokens_dict, train_token_dict)  # doc2vec method
     # result_dict = calculations.run_tfidf(tokens_dict, train_token_dict)
-    # TODO BM25
-    # TODO BERT
 
     before_output = time.time()
     # for NO THRESHOLD, call write_results | for doc2vec(threshold + scale) call write_results_w_scale
