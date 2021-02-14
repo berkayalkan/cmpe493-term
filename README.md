@@ -24,8 +24,9 @@ To run the program successfully, execute these commands mentioned below inside t
 python3 main.py
 ```
 *  For BM25:
+For creating BM25 model results in a pickle and to create results for TREC eval, run the following command:
 ```
-
+python3 bm25/bm25_operations.py
 ```
 *  For Rerank with BERT: <br/>
 First run following command to create BERT similarities dictionary:

@@ -6,10 +6,12 @@ import calculations
 from typing import List, Dict
 import main
 import file_operation
+import os
 
 if __name__ == "__main__":
 
     begin_time = time.time()
+    os.chdir(r'..\ ')
     topic_info_dict: Dict[str, str] = file_operation.extract_file()
     before_tf = time.time() - begin_time
     print("File extraction is ended. Time passed: {0}".format(before_tf))
@@ -38,3 +40,6 @@ if __name__ == "__main__":
     f = open('input/bm25_trained.pickle', 'wb')
     pickle.dump(bm25_result_dict, f)
     f.close()
+
+    file_operation.write_results(bm25_result_dict)
+
