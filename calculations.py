@@ -1,5 +1,6 @@
 import math
 import collections
+import time
 from typing import List, Dict
 from rank_bm25 import BM25Okapi
 
@@ -83,3 +84,36 @@ def bm25_score(tokenized_corpus, tokenized_query):
     bm25 = BM25Okapi(tokenized_corpus)
     score = bm25.get_scores(tokenized_query)
     return score
+
+
+def compare(normalized_dict: Dict[str, Dict[str, float]], train_normalized_dict: Dict[str, Dict[str, float]]) \
+        -> Dict[str, Dict[str, float]]:
+    result_dict: Dict[str, Dict[str, float]] = {}
+    for topic_id in train_normalized_dict:
+        for doc_id in normalized_dict:
+            if topic_id not in result_dict:
+                result_dict.update({topic_id: {}})
+            result_dict[topic_id].update({doc_id: cos_calculator(normalized_dict[doc_id],
+                                                                 train_normalized_dict[topic_id])})
+    return result_dict
+
+
+def run_tfidf(tokens_dict: Dict[str, List[str]], train_token_dict: Dict[str, List[str]]) -> Dict[str, Dict[str, float]]:
+    tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(tokens_dict)
+    df_dict: Dict[str, int] = calculate_df(tokens_dict)
+    idf_dict: Dict[str, float] = calculate_idf(df_dict, len(tokens_dict))
+    score_dict: Dict[str, Dict[str, float]] = calculate_score(tf_dict, idf_dict)
+    # AFTER LENGTH NORMALIZATION
+    normalized_dict: Dict[str, Dict[str, float]] = calculate_normalization(score_dict)
+
+    train_tf_dict: Dict[str, Dict[str, float]] = calculate_tf_weight(train_token_dict)
+    train_df_dict: Dict[str, int] = calculate_df(train_token_dict)
+    train_idf_dict: Dict[str, float] = calculate_idf(train_df_dict, len(train_token_dict))
+    train_score_dict: Dict[str, Dict[str, float]] = calculate_score(train_tf_dict, train_idf_dict)
+    train_normalized_dict: Dict[str, Dict[str, float]] = calculate_normalization(train_score_dict)
+
+    before_result = time.time()
+    result_dict: Dict[str, Dict[str, float]] = compare(normalized_dict, train_normalized_dict)
+    result_time = time.time() - before_result
+    print("Calculating RESULT is ended. Time passed: {0}".format(result_time))
+    return result_dict
