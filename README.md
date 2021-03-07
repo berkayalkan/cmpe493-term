@@ -43,3 +43,6 @@ python3 bert/official_results_top100.py
 - [Sertay Akpinar](https://github.com/sertayy)
 - [Olcayto Türker](https://github.com/olcaytoturker)
 - [Berkay Alkan](https://github.com/berkayalkan)
+
+## License
+[BSD 3-Clause License](https://github.com/berkayalkan/cmpe493-term/blob/master/LICENSE)
