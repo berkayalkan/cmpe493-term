@@ -4,7 +4,7 @@ literature. The task can be found in [TREC-COVID Challange](https://ir.nist.gov/
 ## Notes
 - This project developed in a MacOs & Windows machine using Python 3.8.5.
 - Required packages can be seen in the "requirements.txt".
-- "metadata.csv" and "official_results.txt" should be located in the ".input" directory.
+- "metadata.csv" and "official_results.txt" should be located in the ".input" directory. Files can be found [here](https://drive.google.com/drive/folders/1ghTgJ9_tge6WgR1wfnAXDU2LbDU5MZZC?usp=sharing)
 - Any kinds of outputs will be saved in the ".output" folder, after execution.
 ## Dependencies
  | package | version |
