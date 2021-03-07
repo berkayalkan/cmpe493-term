@@ -1,3 +1,13 @@
 venv
 .idea
 .DS_Store
+log
+input/train_*
+input/bm25_trained.pickle
+input/20_doc2vec_model
+input/doc_tokens.pickle
+input/topic_tokens.pickle
+input/metadata.csv
+input/official_results.txt
+output
+__pycache__
